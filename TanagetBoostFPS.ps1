@@ -475,7 +475,7 @@ function Confirm-GameClosed {
     return $true
 }
 
-function Apply-GtaReduce {
+function Apply-GtaReduce([double]$Val, [string]$LevelName) {
     $path = Get-GtaSettingsPath
     if (-not $path) { Log 'ไม่พบ settings.xml ของ GTA V (ต้องเปิดเกมอย่างน้อย 1 ครั้งก่อน เพื่อให้เกมสร้างไฟล์นี้)'; return }
     if (-not (Confirm-GameClosed)) { Log 'ยกเลิก - ปิดเกมก่อนแล้วลองใหม่'; return }
@@ -493,14 +493,16 @@ function Apply-GtaReduce {
             P = Get-XmlTagValue $content 'PedVarietyMultiplier'
             V = Get-XmlTagValue $content 'VehicleVarietyMultiplier'
         }
-        $content = Set-XmlTagValue $content 'LodScale' '0.000000'
-        $content = Set-XmlTagValue $content 'MaxLodScale' '0.000000'
-        $content = Set-XmlTagValue $content 'CityDensity' '0.500000'
-        $content = Set-XmlTagValue $content 'PedVarietyMultiplier' '0.500000'
-        $content = Set-XmlTagValue $content 'VehicleVarietyMultiplier' '0.500000'
+        $vs = ('{0:N6}' -f $Val)
+        $content = Set-XmlTagValue $content 'LodScale' $vs
+        $content = Set-XmlTagValue $content 'MaxLodScale' $vs
+        $content = Set-XmlTagValue $content 'CityDensity' $vs
+        $content = Set-XmlTagValue $content 'PedVarietyMultiplier' $vs
+        $content = Set-XmlTagValue $content 'VehicleVarietyMultiplier' $vs
         $enc = New-Object Text.UTF8Encoding($true)
         [IO.File]::WriteAllText($path, $content, $enc)
-        Log ("ลดค่าแล้ว - Distance Scaling {0}->0%, Extended Distance {1}->0%, Population Density {2}->50%, Ped/Vehicle Variety {3}/{4}->50%" -f $b.L, $b.X, $b.D, $b.P, $b.V)
+        $pctTxt = '{0:N0}%' -f ($Val * 100)
+        Log ("ตั้งค่าระดับ [$LevelName] แล้ว - Distance Scaling/Extended Distance/Population Density/Ped-Vehicle Variety -> $pctTxt ทั้งหมด (ค่าเดิม: Lod=$($b.L), MaxLod=$($b.X), City=$($b.D), Ped=$($b.P), Veh=$($b.V))")
         Log 'อย่าเข้าเมนู Settings กราฟิกในเกมแล้วกด Apply ซ้ำ ไม่งั้นค่าที่ลดไว้จะถูกเขียนทับ'
     } catch {
         Log "แก้ settings.xml ไม่ได้: $($_.Exception.Message)"
@@ -1017,6 +1019,8 @@ function New-Txt($x, $y, $w, $h) {
 $script:curPage = 0
 $btnNav1 = New-Btn 'หน้าหลัก' 596 22 100 32 $true
 $btnNav2 = New-Btn 'เครื่องมือ' 704 22 110 32 $false
+$btnRes  = New-Btn 'ติดตั้งเมนู' 822 22 98 32 $false
+$tip.SetToolTip($btnRes, "ติดตั้งเมนู FPS Boost (resource FiveM ชื่อ boostfps) ลงเซิร์ฟเวอร์ของคุณเอง`nเลือกโฟลเดอร์ resources แล้วโปรแกรมจะสร้างไฟล์ให้ + เพิ่ม ensure boostfps ใน server.cfg (สำรองของเดิมไว้ให้)`nใช้ได้เฉพาะเซิร์ฟเวอร์ที่คุณเป็นเจ้าของ/มีสิทธิ์แก้ไฟล์ ไม่ใช่การฉีดเมนูเข้าเซิร์ฟเวอร์คนอื่น")
 $script:curPage = 1
 
 # ---------- การ์ดซ้าย: TWEAKS ----------
@@ -1129,10 +1133,14 @@ $tip.SetToolTip($btnFive, 'ตรวจหาไฟล์เกมของ Five
 [void](New-Lbl 'ปิดโปรแกรมเหล่านี้ตอนกด Boost (ชื่อโปรเซส คั่นด้วย ,)' 34 537 490 18 8.5 $script:cDim $false)
 $txtKill = New-Txt 34 556 492 22
 $txtKill.Text = 'OneDrive,Teams,Skype,GoogleUpdate,MicrosoftEdgeUpdate'
-$btnGtaReduce = New-Btn 'ลด Distance Scaling/Population (GTA V)' 34 588 330 30 $true
-$btnGtaRestore = New-Btn 'คืนค่าเดิม (GTA V)' 372 588 154 30 $false
-$tip.SetToolTip($btnGtaReduce, "แก้ settings.xml ของ GTA V โดยตรง: Distance Scaling -> 0%, Extended Distance Scaling -> 0%,`nPopulation Density/Variety -> 50% ต้องปิดเกมก่อนถึงจะเซฟติด ไม่งั้นเกมจะเขียนทับตอนออกจากเกม")
-$tip.SetToolTip($btnGtaRestore, 'คืนค่า settings.xml ของ GTA V กลับเป็นค่าก่อนกด ลด Distance Scaling/Population')
+$btnGtaL1 = New-Btn 'ต่ำสุดๆ (~8%)' 34 588 116 30 $true
+$btnGtaL2 = New-Btn 'ต่ำกว่ากลาง (~40%)' 154 588 128 30 $true
+$btnGtaL3 = New-Btn 'กลางๆ (~80%)' 286 588 108 30 $true
+$btnGtaRestore = New-Btn 'คืนค่าเดิม (GTA V)' 398 588 128 30 $false
+$tip.SetToolTip($btnGtaL1, "แก้ settings.xml ของ GTA V โดยตรง (โหมดแรงสุด): Distance Scaling/Extended Distance/Population Density/Ped-Vehicle Variety -> ~8% ทั้งหมด`nต้องปิดเกมก่อนถึงจะเซฟติด ไม่งั้นเกมจะเขียนทับตอนออกจากเกม")
+$tip.SetToolTip($btnGtaL2, "แก้ settings.xml ของ GTA V โดยตรง (โหมดกลาง): Distance Scaling/Extended Distance/Population Density/Ped-Vehicle Variety -> 40% ทั้งหมด`nต้องปิดเกมก่อนถึงจะเซฟติด ไม่งั้นเกมจะเขียนทับตอนออกจากเกม")
+$tip.SetToolTip($btnGtaL3, "แก้ settings.xml ของ GTA V โดยตรง (โหมดเบา): Distance Scaling/Extended Distance/Population Density/Ped-Vehicle Variety -> 80% ทั้งหมด`nต้องปิดเกมก่อนถึงจะเซฟติด ไม่งั้นเกมจะเขียนทับตอนออกจากเกม")
+$tip.SetToolTip($btnGtaRestore, 'คืนค่า settings.xml ของ GTA V กลับเป็นค่าก่อนกด ปรับระดับ Distance Scaling/Population')
 
 # ---------- การ์ดล่างขวา: ACTIONS ----------
 $btnApply = New-Btn 'ใช้ Tweak ที่เลือก' 572 494 332 40 $true
@@ -1507,7 +1515,9 @@ $btnStartup.Add_Click({
 $btnClean.Add_Click({ Do-Clean 'manual' })
 
 $btnApply.Add_Click({ Do-Apply @($txtExe.Text.Trim()) })
-$btnGtaReduce.Add_Click({ Apply-GtaReduce })
+$btnGtaL1.Add_Click({ Apply-GtaReduce 0.08 'ต่ำสุดๆ ~8%' })
+$btnGtaL2.Add_Click({ Apply-GtaReduce 0.40 'กลาง ~40%' })
+$btnGtaL3.Add_Click({ Apply-GtaReduce 0.80 'เบา ~80%' })
 $btnGtaRestore.Add_Click({ Restore-GtaSettings })
 
 $btnRestore.Add_Click({
@@ -1548,6 +1558,362 @@ $btnBoost.Add_Click({
 
 # ---------- Timer: อัปเดตมิเตอร์ + ล้างอัตโนมัติ ----------
 # ---------- ปุ่มสลับหน้า ----------
+# =====================================================================
+#   ติดตั้งเมนู FPS Boost (resource FiveM "boostfps") ลงเซิร์ฟเวอร์ของตัวเอง
+#   ทำงานฝั่งผู้เล่น: ซ่อนผู้เล่นไกล / LOD / ล้างเลือด-Decals / ปิดเสียงระบบ  (เปิดเมนูในเกมด้วย F7 หรือ /boostfps)
+# =====================================================================
+$script:ResManifest = @'
+fx_version 'cerulean'
+game 'gta5'
+lua54 'yes'
+
+author 'Tanaget'
+description 'Boost FPS menu (client-side)'
+version '1.0.0'
+
+ui_page 'html/index.html'
+files { 'html/index.html' }
+client_script 'client.lua'
+'@
+
+$script:ResClient = @'
+-- Boost FPS: ทำงานฝั่งผู้เล่นเท่านั้น (ไม่กระทบเซิร์ฟเวอร์/ผู้เล่นคนอื่น)
+-- เปิดเมนู: คำสั่ง /boostfps หรือกด F7 (เปลี่ยนได้ใน Settings > Key Bindings > FiveM)
+
+local KVP = 'boostfps_cfg'
+local defaults = {
+    lod = 100,        -- 30-100  (100 = ปกติ)
+    sync = 300,       -- 10-300 เมตร (300 = ปิด)
+    audio = false,    -- ปิดเพลง/เสียงระบบ (ตำรวจ, wanted, flight)
+    effect = false,   -- ลบพาร์ติเคิลเอฟเฟกต์รอบตัว
+    blood = false,    -- ล้างเลือดบนตัว/พื้นรอบตัว
+    clean = false,    -- ล้าง Decals รอบตัวอัตโนมัติ
+    cleanDist = 50,   -- 20-300 เมตร
+    fashion = false,   -- ลดรายละเอียดเสื้อผ้า/อุปกรณ์ของผู้เล่นที่อยู่ไกล (เฉพาะเครื่องเรา)
+}
+
+local cfg, open, hidden, fashionPeds = {}, false, {}, {}
+
+local function save() SetResourceKvp(KVP, json.encode(cfg)) end
+
+local function load()
+    local saved = GetResourceKvpString(KVP)
+    local data = saved and json.decode(saved) or {}
+    for k, v in pairs(defaults) do
+        if type(data[k]) == type(v) then cfg[k] = data[k] else cfg[k] = v end
+    end
+end
+
+local function applyAudio()
+    local on = cfg.audio
+    SetAudioFlag('DisableFlightMusic', on)
+    SetAudioFlag('WantedMusicDisabled', on)
+    SetAudioFlag('PoliceScannerDisabled', on)
+end
+
+-- Fashion optimization: ลดชิ้นส่วนเสื้อผ้า/พร็อพของผู้เล่นที่อยู่ไกล
+-- ทำเฉพาะ client เครื่องนี้ และคืนค่าทันทีเมื่อปิดสวิตช์หรือหยุด resource
+local function restoreFashionPed(ped)
+    local saved = fashionPeds[ped]
+    if not saved or not DoesEntityExist(ped) then fashionPeds[ped] = nil return end
+    for comp, v in pairs(saved.components) do
+        SetPedComponentVariation(ped, comp, v.drawable, v.texture, v.palette)
+    end
+    for prop, v in pairs(saved.props) do
+        SetPedPropIndex(ped, prop, v.drawable, v.texture, true)
+    end
+    fashionPeds[ped] = nil
+end
+
+local function applyFashionPed(ped)
+    if not DoesEntityExist(ped) or not IsPedAPlayer(ped) then return end
+    if fashionPeds[ped] then return end
+    local saved = { components = {}, props = {} }
+    -- เก็บค่าก่อนลดรายละเอียด เพื่อคืนค่าได้ถูกต้อง
+    for _, comp in ipairs({0,1,2,3,4,5,6,7,8,9,10,11}) do
+        saved.components[comp] = { drawable = GetPedDrawableVariation(ped, comp), texture = GetPedTextureVariation(ped, comp), palette = GetPedPaletteVariation(ped, comp) }
+    end
+    for _, prop in ipairs({0,1,2,6,7}) do
+        saved.props[prop] = { drawable = GetPedPropIndex(ped, prop), texture = GetPedPropTextureIndex(ped, prop) }
+    end
+    fashionPeds[ped] = saved
+    -- เหลือเฉพาะชิ้นส่วนหลัก ลดภาระการวาดเสื้อผ้า/อุปกรณ์ของผู้เล่นไกล
+    for _, comp in ipairs({1,5,7,8,9,10}) do SetPedComponentVariation(ped, comp, 0, 0, 0) end
+    for _, prop in ipairs({0,1,2,6,7}) do ClearPedProp(ped, prop) end
+end
+
+local function clearFashion()
+    for ped, _ in pairs(fashionPeds) do restoreFashionPed(ped) end
+    fashionPeds = {}
+end
+
+local function setOpen(state)
+    open = state
+    SetNuiFocus(state, state)
+    if state then SendNUIMessage({ type = 'open', cfg = cfg }) else SendNUIMessage({ type = 'close' }) end
+end
+
+RegisterCommand('boostfps', function() setOpen(not open) end, false)
+RegisterKeyMapping('boostfps', 'เปิด/ปิดเมนู Boost FPS', 'keyboard', 'F7')
+
+RegisterNUICallback('set', function(data, cb)
+    if defaults[data.key] ~= nil and type(data.value) == type(defaults[data.key]) then
+        cfg[data.key] = data.value
+        save()
+        if data.key == 'audio' then applyAudio() end
+        if data.key == 'fashion' and not data.value then clearFashion() end
+    end
+    cb('ok')
+end)
+
+RegisterNUICallback('close', function(_, cb) setOpen(false) cb('ok') end)
+
+-- ทุกเฟรม: LOD + ซ่อนผู้เล่นที่ไกลเกินระยะ (ทำงานเมื่อเปิดใช้เท่านั้น)
+CreateThread(function()
+    while true do
+        local wait = 500
+        if cfg.lod < 100 then
+            OverrideLodscaleThisFrame(cfg.lod / 100.0)
+            wait = 0
+        end
+        if cfg.sync < 300 and #hidden > 0 then
+            for i = 1, #hidden do
+                if DoesEntityExist(hidden[i]) then SetEntityLocallyInvisible(hidden[i]) end
+            end
+            wait = 0
+        end
+        Wait(wait)
+    end
+end)
+
+-- ทุก 0.5 วินาที: หาผู้เล่นที่อยู่ไกลกว่าระยะที่ตั้ง
+CreateThread(function()
+    while true do
+        Wait(500)
+        local list = {}
+        if cfg.sync < 300 then
+            local me = PlayerId()
+            local myCoords = GetEntityCoords(PlayerPedId())
+            for _, pid in ipairs(GetActivePlayers()) do
+                if pid ~= me then
+                    local ped = GetPlayerPed(pid)
+                    if ped ~= 0 and #(GetEntityCoords(ped) - myCoords) > cfg.sync + 0.0 then
+                        list[#list + 1] = ped
+                    end
+                end
+            end
+        end
+        hidden = list
+    end
+end)
+
+-- ทุก 1.5 วินาที: ลดรายละเอียดเสื้อผ้าผู้เล่นที่อยู่ไกล และคืนค่าคนที่ไม่เข้าเงื่อนไข
+CreateThread(function()
+    while true do
+        Wait(1500)
+        if cfg.fashion then
+            local me = PlayerId()
+            local c = GetEntityCoords(PlayerPedId())
+            local seen = {}
+            for _, pid in ipairs(GetActivePlayers()) do
+                if pid ~= me then
+                    local ped = GetPlayerPed(pid)
+                    if ped ~= 0 and DoesEntityExist(ped) and #(GetEntityCoords(ped) - c) > 35.0 then
+                        applyFashionPed(ped)
+                        seen[ped] = true
+                    end
+                end
+            end
+            for ped, _ in pairs(fashionPeds) do
+                if not seen[ped] then restoreFashionPed(ped) end
+            end
+        elseif next(fashionPeds) then
+            clearFashion()
+        end
+    end
+end)
+
+-- ทุก 3 วินาที: ล้างเลือด / Decals / เอฟเฟกต์รอบตัว
+CreateThread(function()
+    while true do
+        Wait(3000)
+        if cfg.clean or cfg.blood or cfg.effect then
+            local ped = PlayerPedId()
+            local c = GetEntityCoords(ped)
+            if cfg.clean then RemoveDecalsInRange(c.x, c.y, c.z, cfg.cleanDist + 0.0) end
+            if cfg.blood then
+                RemoveDecalsInRange(c.x, c.y, c.z, 30.0)
+                for _, p in ipairs(GetGamePool('CPed')) do
+                    if #(GetEntityCoords(p) - c) < 30.0 then
+                        ClearPedBloodDamage(p)
+                        ClearPedEnvDirt(p)
+                    end
+                end
+            end
+            if cfg.effect then RemoveParticleFxInRange(c.x, c.y, c.z, 50.0) end
+        end
+    end
+end)
+
+AddEventHandler('onResourceStop', function(res)
+    if res ~= GetCurrentResourceName() then return end
+    SetNuiFocus(false, false)
+    cfg.audio = false
+    clearFashion()
+    applyAudio()
+end)
+
+load()
+applyAudio()
+'@
+
+$script:ResHtml = @'
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>Boost FPS</title>
+<style>
+:root{--bg:#111214;--row:#1b1d1f;--line:#2b2e31;--text:#e9ecef;--sub:#8b9299;--acc:#2b6a99;--acc2:#3d8fc9;--side:#151719}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:transparent;font-family:"Segoe UI","Leelawadee UI",Tahoma,sans-serif;color:var(--text);user-select:none}
+#app{display:none;position:absolute;inset:0;align-items:center;justify-content:center}
+#app.show{display:flex}
+.panel{width:min(760px,96vw);max-height:86vh;background:var(--bg);border:1px solid var(--line);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.6);display:flex;flex-direction:column;overflow:hidden}.body{display:flex;min-height:410px}.side{width:180px;background:var(--side);border-right:1px solid var(--line);padding:16px 10px}.side h2{font-size:12px;color:var(--text);margin:4px 12px 18px}.nav{padding:11px 12px;color:var(--sub);border-radius:8px;font-size:12px;margin:3px 0;cursor:pointer}.nav.active{background:var(--acc);color:#fff}.content{flex:1;min-width:0}.content .list{height:410px}
+header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--line)}
+header h1{margin:0;font-size:16px;font-weight:700}header{background:#101112}
+header small{display:block;color:var(--sub);font-size:12px;margin-top:2px;font-weight:400}
+.x{background:none;border:0;color:var(--sub);font-size:20px;cursor:pointer;padding:4px 8px;border-radius:6px}
+.x:hover,.x:focus-visible{color:var(--text);background:var(--row);outline:none}
+.list{padding:12px;overflow:auto;display:flex;flex-direction:column;gap:8px}
+.item{display:flex;align-items:center;gap:14px;background:var(--row);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.item .t{flex:1;min-width:0}
+.item b{display:block;font-size:13px}
+.item span{display:block;color:var(--sub);font-size:12px;margin-top:2px;line-height:1.35}
+.ctl{display:flex;align-items:center;gap:10px}
+.val{min-width:46px;text-align:right;font-size:12px;font-variant-numeric:tabular-nums}
+input[type=range]{-webkit-appearance:none;appearance:none;width:130px;height:6px;border-radius:3px;background:var(--line);outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--text);cursor:pointer}
+input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 3px var(--acc2)}
+.sw{position:relative;width:44px;height:24px;border-radius:12px;background:#3a3e42;border:0;cursor:pointer;transition:background .15s}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#cfd4d8;transition:transform .15s}
+.sw.on{background:var(--acc)}
+.sw.on::after{transform:translateX(20px);background:#fff}
+.sw:focus-visible{outline:2px solid var(--acc2);outline-offset:2px}
+footer{padding:10px 20px;border-top:1px solid var(--line);color:var(--sub);font-size:11px}
+@media (prefers-reduced-motion:reduce){.sw,.sw::after{transition:none}}
+</style>
+</head>
+<body>
+<div id="app"><div class="panel">
+  <header><div><h1>FPS BOOST<small>ตั้งค่าเฉพาะเครื่องคุณ บันทึกอัตโนมัติ</small></div><button class="x" id="close" aria-label="ปิด">✕</button></header>
+  <div class="body"><aside class="side"><h2>ALL MENU<br><small>เมนูรวม</small></h2><div class="nav">◈ QUICK MENU</div><div class="nav">⌘ UI TOGGLE</div><div class="nav active">⚑ FPS BOOST</div><div class="nav">⚙ SETTING</div><div class="nav">◆ EVENT</div><div class="nav">☁ WEATHER</div><div class="nav">♩ VOICE MANAGER</div><div class="nav">♢ SUIT&SHIRT</div></aside><main class="content"><div class="list" id="list"></div></main></div>
+  <footer>กด ESC เพื่อปิดเมนู</footer>
+</div></div>
+<script>
+const ITEMS=[
+ {k:'lod',t:'LOD SCALING',d:'ค่าน้อย = วัตถุไกลโหลดเร็วขึ้น / 100% = ปกติ',type:'range',min:30,max:100,step:1,fmt:v=>v+'%'},
+ {k:'sync',t:'SYNC PLAYER',d:'ซ่อนผู้เล่นที่อยู่ไกลเกินระยะ (300 = ปิด)',type:'range',min:10,max:300,step:5,fmt:v=>v>=300?'ปิด':v+' ม.'},
+ {k:'audio',t:'AUDIO BOOST',d:'ปิดเพลงระบบ เช่น wanted, flight, ตำรวจ',type:'sw'},
+ {k:'effect',t:'EFFECT',d:'ลบเอฟเฟกต์พาร์ติเคิลรอบตัว',type:'sw'},
+ {k:'blood',t:'BLOOD',d:'ล้างรอยเลือดบนตัวและพื้นรอบตัว',type:'sw'},
+ {k:'clean',t:'AUTO CLEAN',d:'เคลียร์ Decals ที่ตกค้างรอบตัวอัตโนมัติ',type:'sw'},
+ {k:'cleanDist',t:'CLEAN DISTANCE',d:'ระยะที่ Auto Clean ทำงาน',type:'range',min:20,max:300,step:10,fmt:v=>v+' ม.'},
+ {k:'fashion',t:'FASHION',d:'ลดรายละเอียดเสื้อผ้าและพร็อพของผู้เล่นที่อยู่ไกล เฉพาะเครื่องคุณ',type:'sw'}
+];
+const res=(typeof GetParentResourceName==='function')?GetParentResourceName():'boostfps';
+const post=(n,b)=>fetch(`https://${res}/${n}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})}).catch(()=>{});
+const app=document.getElementById('app'),list=document.getElementById('list');
+function build(cfg){
+  list.innerHTML='';
+  ITEMS.forEach(it=>{
+    const row=document.createElement('div');row.className='item';
+    row.innerHTML=`<div class="t"><b>${it.t}</b><span>${it.d}</span></div><div class="ctl"></div>`;
+    const ctl=row.querySelector('.ctl');
+    if(it.type==='range'){
+      const r=document.createElement('input');r.type='range';r.min=it.min;r.max=it.max;r.step=it.step;r.value=cfg[it.k];
+      const v=document.createElement('div');v.className='val';v.textContent=it.fmt(+r.value);
+      r.oninput=()=>{v.textContent=it.fmt(+r.value)};
+      r.onchange=()=>post('set',{key:it.k,value:+r.value});
+      ctl.append(r,v);
+    }else{
+      const b=document.createElement('button');b.className='sw'+(cfg[it.k]?' on':'');b.setAttribute('role','switch');b.setAttribute('aria-checked',!!cfg[it.k]);b.setAttribute('aria-label',it.t);
+      b.onclick=()=>{const on=!b.classList.contains('on');b.classList.toggle('on',on);b.setAttribute('aria-checked',on);post('set',{key:it.k,value:on})};
+      ctl.append(b);
+    }
+    list.append(row);
+  });
+}
+window.addEventListener('message',e=>{
+  const d=e.data;
+  if(d.type==='open'){build(d.cfg);app.classList.add('show')}
+  if(d.type==='close'){app.classList.remove('show')}
+});
+document.getElementById('close').onclick=()=>post('close');
+document.addEventListener('keydown',e=>{if(e.key==='Escape')post('close')});
+</script>
+</body>
+</html>
+'@
+
+function Install-BoostResource {
+    $dlg = New-Object Windows.Forms.FolderBrowserDialog
+    $dlg.Description = "เลือกโฟลเดอร์ 'resources' ของเซิร์ฟเวอร์ FiveM ของคุณ (หรือโฟลเดอร์ server-data ที่มี resources อยู่ข้างใน)"
+    $dlg.ShowNewFolderButton = $false
+    if ($dlg.ShowDialog() -ne 'OK') { return }
+    $sel = $dlg.SelectedPath.TrimEnd('\')
+
+    $resDir = $null
+    if ((Split-Path -Leaf $sel) -ieq 'resources') { $resDir = $sel }
+    elseif (Test-Path -LiteralPath (Join-Path $sel 'resources') -PathType Container) { $resDir = Join-Path $sel 'resources' }
+    if (-not $resDir) {
+        Log 'โฟลเดอร์ที่เลือกไม่ใช่เซิร์ฟเวอร์ FiveM (ไม่พบโฟลเดอร์ชื่อ resources)'
+        [void][Windows.Forms.MessageBox]::Show("ไม่พบโฟลเดอร์ resources ในที่ที่เลือก`nเลือกโฟลเดอร์ resources หรือ server-data ของเซิร์ฟเวอร์คุณ", 'ติดตั้งเมนู', 'OK', 'Warning')
+        return
+    }
+
+    $root   = Split-Path -Parent $resDir
+    $target = Join-Path $resDir 'boostfps'
+    $cfg    = Join-Path $root 'server.cfg'
+    $ask = "จะติดตั้งเมนู FPS Boost ที่:`n$target`n`nและเพิ่ม 'ensure boostfps' ใน server.cfg (สำรองของเดิมไว้ให้)`n`nใช้ได้เฉพาะเซิร์ฟเวอร์ที่คุณเป็นเจ้าของ  ดำเนินการต่อ?"
+    if ([Windows.Forms.MessageBox]::Show($ask, 'ติดตั้งเมนู FPS Boost', 'YesNo', 'Question') -ne 'Yes') { return }
+
+    try {
+        $stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
+        if (Test-Path -LiteralPath $target) {
+            $bak = Join-Path $root "boostfps_backup_$stamp"
+            Move-Item -LiteralPath $target -Destination $bak -Force
+            Log "พบ boostfps เดิม ย้ายไปสำรองที่: $bak"
+        }
+        [void](New-Item -ItemType Directory -Path (Join-Path $target 'html') -Force)
+        $enc = New-Object Text.UTF8Encoding($false)
+        [IO.File]::WriteAllText((Join-Path $target 'fxmanifest.lua'), $script:ResManifest, $enc)
+        [IO.File]::WriteAllText((Join-Path $target 'client.lua'), $script:ResClient, $enc)
+        [IO.File]::WriteAllText((Join-Path $target 'html\index.html'), $script:ResHtml, $enc)
+        Log "สร้างไฟล์ boostfps เรียบร้อย: $target"
+
+        if (Test-Path -LiteralPath $cfg -PathType Leaf) {
+            $txt = [IO.File]::ReadAllText($cfg)
+            if ($txt -match '(?im)^\s*(ensure|start)\s+boostfps\s*(#.*)?$') {
+                Log 'server.cfg มี ensure boostfps อยู่แล้ว'
+            } else {
+                Copy-Item -LiteralPath $cfg -Destination "$cfg.bak_$stamp" -Force
+                $nl = if ($txt -match "`r`n") { "`r`n" } else { "`n" }
+                $prefix = if ($txt.Length -gt 0 -and -not $txt.EndsWith("`n")) { $nl } else { '' }
+                [IO.File]::AppendAllText($cfg, $prefix + 'ensure boostfps' + $nl, $enc)
+                Log "เพิ่ม 'ensure boostfps' ใน server.cfg แล้ว (สำรองไว้ที่ server.cfg.bak_$stamp)"
+            }
+            [void][Windows.Forms.MessageBox]::Show("ติดตั้งเสร็จแล้ว`nรีสตาร์ตเซิร์ฟเวอร์ (หรือพิมพ์ ensure boostfps ในคอนโซล)`nในเกมกด F7 หรือพิมพ์ /boostfps เพื่อเปิดเมนู", 'ติดตั้งเมนู FPS Boost', 'OK', 'Information')
+        } else {
+            Log "ไม่พบ server.cfg ที่ $root  กรุณาเพิ่มบรรทัด 'ensure boostfps' เอง"
+            [void][Windows.Forms.MessageBox]::Show("สร้างไฟล์เรียบร้อย แต่ไม่พบ server.cfg ที่`n$root`nกรุณาเพิ่มบรรทัด  ensure boostfps  เอง แล้วรีสตาร์ตเซิร์ฟเวอร์", 'ติดตั้งเมนู FPS Boost', 'OK', 'Information')
+        }
+    } catch {
+        Log "ติดตั้งเมนูไม่สำเร็จ: $($_.Exception.Message)"
+    }
+}
+$btnRes.Add_Click({ Install-BoostResource })
+
 $btnNav1.Add_Click({ Show-Page 1 })
 $btnNav2.Add_Click({ Show-Page 2 })
 
