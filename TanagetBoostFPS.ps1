@@ -337,6 +337,20 @@ $tweaks = @(
         Services = @('SysMain'); SvcDefault = @{ Mode = 'Auto'; Delayed = $false }
     },
     @{
+        Key = 'xboxsvc'
+        Name = 'ปิด Xbox Services (ไม่ได้เล่นผ่านแอป/จอย Xbox)'
+        Default = $false; Aggressive = $true; NeedsExe = $false
+        Services = @('XblAuthManager', 'XblGameSave', 'XboxNetApiSvc', 'XboxGipSvc')
+        SvcDefault = @{ Mode = 'Manual'; Delayed = $false }
+    },
+    @{
+        Key = 'unused'
+        Name = 'ปิดบริการวินโดวส์ที่ไม่ได้ใช้ (Telemetry/แผนที่/แฟกซ์/ตำแหน่งที่ตั้ง/Wallet)'
+        Default = $false; Aggressive = $true; NeedsExe = $false
+        Services = @('DiagTrack', 'dmwappushservice', 'MapsBroker', 'lfsvc', 'Fax', 'WalletService', 'RetailDemo')
+        SvcDefault = @{ Mode = 'Manual'; Delayed = $false }
+    },
+    @{
         Key = 'prio'
         Name = 'เกม: CPU Priority = High'
         Default = $true; Aggressive = $false; NeedsExe = $true
@@ -1032,7 +1046,8 @@ foreach ($t in $tweaks) {
     $cb.Checked = $t.Default
     $cb.Tag = $t
     $cb.Location = New-Object Drawing.Point(34, $y)
-    $cb.Size = New-Object Drawing.Size(490, 22)
+    $cb.Size = New-Object Drawing.Size(490, 20)
+    $cb.Font = New-Object Drawing.Font('Segoe UI', 8.5)
     $cb.ForeColor = $script:cText
     $cb.FlatStyle = 'Flat'
     $cb.FlatAppearance.BorderColor = $script:cAcc2
@@ -1042,13 +1057,13 @@ foreach ($t in $tweaks) {
     Set-CtrlBg $cb
     Track $cb
     $script:checks += $cb
-    $y += 24
+    $y += 20
 }
 
 $chkAggro = New-Object Windows.Forms.CheckBox
 $chkAggro.Text = 'โหมดเครื่องอ่อนสุด (ติ๊กกลุ่ม Tweak ที่แรงขึ้นให้อัตโนมัติ)'
 $chkAggro.Font = New-Object Drawing.Font('Segoe UI Semibold', 9.5)
-$chkAggro.Location = New-Object Drawing.Point(34, 418)
+$chkAggro.Location = New-Object Drawing.Point(34, 408)
 $chkAggro.Size = New-Object Drawing.Size(490, 26)
 $chkAggro.ForeColor = $script:cAcc2
 $chkAggro.FlatStyle = 'Flat'
@@ -1133,11 +1148,11 @@ $tip.SetToolTip($btnFive, 'ตรวจหาไฟล์เกมของ Five
 [void](New-Lbl 'ปิดโปรแกรมเหล่านี้ตอนกด Boost (ชื่อโปรเซส คั่นด้วย ,)' 34 537 490 18 8.5 $script:cDim $false)
 $txtKill = New-Txt 34 556 492 22
 $txtKill.Text = 'OneDrive,Teams,Skype,GoogleUpdate,MicrosoftEdgeUpdate'
-$btnGtaL1 = New-Btn 'ต่ำสุดๆ (~8%)' 34 588 116 30 $true
+$btnGtaL1 = New-Btn 'ต่ำสุดๆ (~5%)' 34 588 116 30 $true
 $btnGtaL2 = New-Btn 'ต่ำกว่ากลาง (~40%)' 154 588 128 30 $true
 $btnGtaL3 = New-Btn 'กลางๆ (~80%)' 286 588 108 30 $true
 $btnGtaRestore = New-Btn 'คืนค่าเดิม (GTA V)' 398 588 128 30 $false
-$tip.SetToolTip($btnGtaL1, "แก้ settings.xml ของ GTA V โดยตรง (โหมดแรงสุด): Distance Scaling/Extended Distance/Population Density/Ped-Vehicle Variety -> ~8% ทั้งหมด`nต้องปิดเกมก่อนถึงจะเซฟติด ไม่งั้นเกมจะเขียนทับตอนออกจากเกม")
+$tip.SetToolTip($btnGtaL1, "แก้ settings.xml ของ GTA V โดยตรง (โหมดแรงสุด): Distance Scaling/Extended Distance/Population Density/Ped-Vehicle Variety -> ~5% ทั้งหมด`nต้องปิดเกมก่อนถึงจะเซฟติด ไม่งั้นเกมจะเขียนทับตอนออกจากเกม")
 $tip.SetToolTip($btnGtaL2, "แก้ settings.xml ของ GTA V โดยตรง (โหมดกลาง): Distance Scaling/Extended Distance/Population Density/Ped-Vehicle Variety -> 40% ทั้งหมด`nต้องปิดเกมก่อนถึงจะเซฟติด ไม่งั้นเกมจะเขียนทับตอนออกจากเกม")
 $tip.SetToolTip($btnGtaL3, "แก้ settings.xml ของ GTA V โดยตรง (โหมดเบา): Distance Scaling/Extended Distance/Population Density/Ped-Vehicle Variety -> 80% ทั้งหมด`nต้องปิดเกมก่อนถึงจะเซฟติด ไม่งั้นเกมจะเขียนทับตอนออกจากเกม")
 $tip.SetToolTip($btnGtaRestore, 'คืนค่า settings.xml ของ GTA V กลับเป็นค่าก่อนกด ปรับระดับ Distance Scaling/Population')
@@ -1515,7 +1530,7 @@ $btnStartup.Add_Click({
 $btnClean.Add_Click({ Do-Clean 'manual' })
 
 $btnApply.Add_Click({ Do-Apply @($txtExe.Text.Trim()) })
-$btnGtaL1.Add_Click({ Apply-GtaReduce 0.08 'ต่ำสุดๆ ~8%' })
+$btnGtaL1.Add_Click({ Apply-GtaReduce 0.05 'ต่ำสุดๆ ~5%' })
 $btnGtaL2.Add_Click({ Apply-GtaReduce 0.40 'กลาง ~40%' })
 $btnGtaL3.Add_Click({ Apply-GtaReduce 0.80 'เบา ~80%' })
 $btnGtaRestore.Add_Click({ Restore-GtaSettings })
